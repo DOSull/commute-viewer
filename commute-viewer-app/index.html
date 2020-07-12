@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commute Viewer map</title>
+
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- <script src="./js/lib/plotly-latest.min.js"></script> -->
+
+    <script src="./js/lib/jquery-3.5.1.min.js"></script>
+    <script src="./js/lib/nouislider.min.js"></script>
+    <script src="./js/lib/papaparse.min.js"></script>
+
+    <link href="https://api.mapbox.com/mapbox-gl-js/v0.44.1/mapbox-gl.css" rel='stylesheet'/>
+
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <link rel="stylesheet" type="text/css" href="./css/viewer.css">
+    <link rel="stylesheet" type="text/css" href="./css/nouislider.css">
+    <link rel="stylesheet" type="text/css" href="./css/auto-complete.css">
+  </head>
+
+  <body>
+    <div id="newid"></div>
+
+    <div id="tooltip" class="tooltip" style="visibility: hidden;"></div>
+
+    <div id="loaderDiv"><div id="loader"></div></div>
+
+    <div style="display: flex; flex-flow: row wrap; justify-content: flex-start; align-items: flex-start;">
+
+      <!-- the charts -->
+      <div id="chart-container" class="control-panel" style="display: none; order: 1; flex: 0 0 320px;">
+
+        <div style="display: flex; flex-direction: column;">
+
+          <!-- Selected area options -->
+          <div id='selection-bar' style="flex: 0 0 18px;">
+
+            <div class="control-panel-section" style="display: flex; background-image: url('./commute-viewer-logo.jpg');">
+
+              <label id='restore-controls' class='control' title='Switch to controls' style="text-align: center;" onclick="switchMenus()">
+                <span "font-size: large;">&LeftArrowRightArrow;</span> View controls
+              </label>
+
+              <div style="flex-grow: 1;">
+                <span id='selected-area'>&nbsp;</span>
+              </div>
+
+              <label id='deselect' class='control' title='Deselect area and close chart' style="text-align: center; font-size: large;" onclick="deselectArea(SEL_AREA)">
+                &bigotimes;
+              </label>
+
+              <label id='zoom-button' class='control' title='Focus selection' style="text-align: center; font-size: large;" onclick="zoomTo()">
+                <span class="rotate-45">&#9906;</span>
+              </label>
+
+            </div>
+
+          </div>
+
+          <div id="chart" class="control-panel-section" style="flex-grow: 5;">
+            <div id="subplot1"></div>
+
+            <div id="subplot2"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div id="main-controls" style="display: block; flex: 0 0 320px;">
+        <div class="control-panel" style="display: flex; flex-direction: column; flex: 0 0 320px; order=0;">
+
+          <!-- Header bar -->
+          <div class="control-panel-section" style="display: flex; justify-content: space-between; align-items: center; background-image: url('./commute-viewer-logo.jpg'); flex: 0 0 18px; vertical-align: middle;">
+
+            <label id="switch-theme" class="control" title="switch theme" style="font-size: large;" onclick="switchTheme()">&#9680;
+            </label>
+
+            <p class="close" style="flex: 3 0 180px;">Commute Viewer</p>
+
+            <label id='switch-to-chart' class='control' title='Switch to chart' style="display: none; flex: 1 0 100px; text-align: center;" onclick="switchMenus()">
+              View chart <span "font-size: large;">&LeftArrowRightArrow;</span>
+            </label>
+          </div>
+
+          <!-- tabbed sections -->
+          <div style="display: flex; justify-content: space-around; align-items: stretch; flex: 0 0 30px;">
+            <div id="help-tab" onclick='openPanel("help")' class="control-panel-section" style="flex-basis: 33%; box-shadow: 0px 3px rgba(102, 102, 153, 0.75);">
+              <label title="Open help">
+                Help
+              </label>
+            </div>
+
+            <div id="tour-tab" onclick='openPanel("tour")' class="control-panel-section" style="flex-basis: 33%;">
+              <label title="Take a tour">
+                Tour
+              </label>
+            </div>
+
+            <div id="filters-tab" onclick='openPanel("filters")' class="control-panel-section" style="flex-basis: 33%;">
+              <label title="Open filters">
+                Trip filters
+              </label>
+            </div>
+          </div>
+
+          <div id="filters-panel" class="control-panel-section" style="display: none;">
+
+            <div style="display: flex; flex-direction: column;">
+
+              <div>
+                <input id="enter-name" autofocus type="search" name="placename" placeholder="Enter placename ...">
+                <label class="control" onclick="gotoSearchArea()" style="padding: 5px;">&nbsp;Show
+                </label>
+              </div>
+
+              <div style="display: flex; justify-content: space-between;">
+
+                <div style="flex: 0 0 93px;">
+                  <p class="close">Volume</p>
+                  <div id="trips-range" style="height: 80%; margin: 20px -12px 20px 22px;" class="subhead" id="trips-range">
+                  </div>
+                </div>
+
+                <div style="flex: 0 0 93px;">
+                  <p class="close">Dist(km)</p>
+                  <div id="distance-range" style="height: 80%; margin: 20px -2px 20px 22px;" class="subhead" id="distance-range">
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; flex: 0 0 126px;">
+                  <p class="close">Purpose</p>
+                  <label class="control">
+                    <input id="check-w" type="checkbox" onclick="togglePurposesToInclude('w')">&nbsp;Work
+                  </label>
+                  <label class="control">
+                    <input id="check-e" type="checkbox" onclick="togglePurposesToInclude('e')">&nbsp;Study
+                  </label>
+
+                  <p class="close">Mode</p>
+                  <label class="control">
+                    <input id="check-cr" type="checkbox" onclick="toggleModesToInclude('cr')">&nbsp;Car
+                  </label>
+                  <label class="control">
+                    <input id="check-pt" type="checkbox" onclick="toggleModesToInclude('pt')">&nbsp;Transit
+                  </label>
+                  <label class="control">
+                    <input id="check-ac" type="checkbox" onclick="toggleModesToInclude('ac')">&nbsp;Active
+                  </label>
+
+                  <p class="close">Direction</p>
+                  <label class="control">
+                    <input id="check-in" type="checkbox" onclick="toggleDirectionToInclude('in')">&nbsp;Inbound
+                  </label>
+                  <label class="control">
+                    <input id="check-out" type="checkbox" onclick="toggleDirectionToInclude('out')">&nbsp;Outbound
+                  </label>
+                  <p style="text-align: right; color: #636; background-color: rgba(255, 255, 255, 0.35); font-size: 80%; margin: 0px; padding: 0px;">for selected area only</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="help-panel" class="control-panel-section" style="display: block;">
+
+            <div>
+              <label for='unfurl-what-is-this' onclick="unfurlElement('unfurl-what-is-this-arrow', 'what-is-this')">
+                <p id='unfurl-what-is-this' class="info-title">
+                  What is this? <span id="unfurl-what-is-this-arrow">&#9651;</span>
+                </p>
+              </label>
+              <div id="what-is-this" class="info-panel" style="display: block;">
+                <p>
+                  It's an interactive <strong>3D</strong> map of commuting data from the 2018 New Zealand census.
+                </p>
+                <p>
+                  These data show the numbers of people making <strong>trips</strong> between a home locations and a usual place of work or study on census day. Data are at the level of Statistical Areas, roughly equivalent to neighbourhoods.
+                </p>
+                <p>
+                  These connections are shown as 'ribbons' whose colours relate to the <strong>purpose</strong> and transport <strong>mode</strong>, and widths to the <strong>volume</strong> of trips.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label for='unfurl-how-do-i-use-it' onclick="unfurlElement('unfurl-how-do-i-use-it-arrow', 'how-do-i-use-it')">
+                <p id='unfurl-how-do-i-use-it' class="info-title">
+                  How do I use it? <span id="unfurl-how-do-i-use-it-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="how-do-i-use-it" class="info-panel" style="display: none;">
+                <p>
+                  To navigate the <strong>3D</strong> map use mouse, keyboard arrows, or touch gestures. Most operations are as you would expect, but changing pitch and is done using CTRL or Cmd mouse-click, or right-click and drag. If you get lost, use a tour desination to find your place again, or if an area is selected focus it with the <span class="rotate-45">&#9906;</span> button in the chart view.
+                </p>
+                <p>
+                  Clicking on an area will display a chart with details of its overall transport mix with transport modes as <strong>car</strong> (any private road-transport), <strong>transit</strong> (bus, school bus, train, ferry), or <strong>active</strong> (walking, cycling, other modes).
+                </p>
+                <p>
+                  To deselect an area, click on it again or use the chart's &bigotimes; button, and the view will switch back to showing trips for all areas. You can also focus on the selected area using the <span class="rotate-45">&#9906;</span> button.
+                </p>
+                <p>
+                  Change which trips are displayed using the <strong>Trips filters</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label for='unfurl-what-about-the-colours' onclick="unfurlElement('unfurl-what-about-the-colours-arrow', 'what-about-the-colours')">
+                <p id='unfurl-what-about-the-colours' class="info-title">
+                  What do the colours mean? <span id="unfurl-what-about-the-colours-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="what-about-the-colours" class="info-panel" style="display: none;">
+                <p>
+                  Origins of trips (i.e. where people live) are <span class="bluish">blue-ish for work</span> and <span class="greenish">green-ish for study</span> trips. Trip destinations are <span class="pinkish">pink-ish for work</span> and <span class="orangey">orange-y for study</span>.
+                </p>
+                <p>
+                  When there are both work and study trips between places the colours mix accordingly. Major centres of employment appear <span class="pinkish">bright pink</span> and major centres of education <span class="orangey">bright orange</span>. Mostly residential places appear <span class="bluish">blue</span>-<span class="greenish">green</span>.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label for='unfurl-trip-filter' onclick="unfurlElement('unfurl-trip-filter-arrow', 'trip-filter')">
+                <p id='unfurl-trip-filter' class="info-title">
+                  What does the trip filter do? <span id="unfurl-trip-filter-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="trip-filter" class="info-panel" style="display: none;">
+                <p>
+                  Ribbon widths change based on the total number of trips included using the <strong>Trip filter</strong> controls.
+                </p>
+                <p>
+                  You can switch on and off different trip <strong>purposes</strong> (work/study), trip <strong>modes</strong> (car/transit/active), and also limit the range of trip <strong>volumes</strong>, or point-to-point <strong>distances</strong> displayed.
+                </p>
+                <p>
+                  Changing the ranges of trip volumes and distances shown can help clear map clutter so you can focus on a particular place.
+                </p>
+                <p>
+                  Distances are measured point-to-point from area centre to area centre, so large rural areas, they do not reflect actual distances travelled very well.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label for='unfurl-theme' onclick="unfurlElement('unfurl-theme-arrow', 'theme')">
+                <p id='unfurl-theme' class="info-title">
+                  Too light or too dark? <span id="unfurl-theme-arrow">&#9651;</span>
+                </p>
+              </label>
+              <div id="theme" class="info-panel" style="display: none;">
+                <p>
+                  Depending on your screen and viewing conditions you might prefer a dark or light basemap (the other colours stay the same).
+                </p>
+                <p>
+                  Use the <span class="control">&#9680;</span> button to switch, but be warned, the whole page will reload, which might take a little time...
+                </p>
+                <p>
+                  The site defaults to the light theme, because it seems to work better in more viewing conditions, but the dark theme is very cool to look at it if it works for you. Bookmark one of the links below to ensure you can immediately revisit the version you prefer in future!
+                  <ul>
+                    <li>
+                      <a href="./index.html?theme=light">Light theme</a> (the default)
+                    </li>
+                    <li>
+                      <a href="./index.html?theme=dark">Dark theme</a>
+                    </li>
+                  </ul>
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label for='unfurl-credits-and-links' onclick="unfurlElement('unfurl-credits-and-links-arrow', 'credits-and-links')">
+                <p id='unfurl-credits-and-links' class="info-title">
+                  Credits and links <span id="unfurl-credits-and-links-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="credits-and-links" class="info-panel" style="display: none;">
+                <p>
+                  This was built as an entry to the <a target="_blank" href="https://www.stats.govt.nz/2018-census/there-and-back-again-data-visualisation-competition">There and back again</a> contest announcement by <a target="_blank" href="https://www.stats.govt.nz/">Stats NZ - Tatauranga Aotearoa</a>.
+                </p>
+                <p>
+                  Many free tools and resources were used including&mdash;but not limited to:
+                  <ul>
+                    <li>
+                      <a href="https://deck.gl/">deck.gl</a> and <a target="_blank" href="https://docs.mapbox.com/mapbox-gl-js/api/">Mapbox GL JS</a> for the overall 3D visualization framework,
+                    </li>
+                    <li>
+                      <a target="_blank" href="https://www.r-project.org/">R</a>, <a target="_blank" href="https://rstudio.com/">RStudio</a>, <a target="_blank" href="https://mapshaper.org/">mapshaper</a>, and <a target="_blank" href="https://www.qgis.org/en/site/">QGIS</a> for data tidying,
+                    </li>
+                    <li>
+                      basemaps and data from <a href="https://carto.com/">Carto</a> and <a target="_blank" href="https://carto.com/">OpenStreetmap</a>,
+                    </li>
+                    <li>
+                      <a target="_blank" href="https://plotly.com/javascript/">Plotly</a> for the charts,
+                    </li>
+                    <li>the  neat and clever <a target="_blank" href="https://refreshless.com/nouislider/">noUiSlider</a> and <a target="_blank" href="https://goodies.pixabay.com/javascript/auto-complete/demo.html">autocomplete</a> widgets, and</li>
+                    <li>
+                      numerous answers and code snippets at <a target="_blank" href="https://www.w3schools.com/">W3Schools</a> and <a target="_blank" href="https://stackoverflow.com/">StackOverflow</a>.
+                    </li>
+                  </ul>
+                </p>
+                <p>
+                  I learned a ton building it. Enjoy! <a target="_blank" href="https://southosullivan.com/geodos/">David O'Sullivan</a>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div id="tour-panel" class="control-panel-section" style="display: none;">
+
+            <div id="tour-intro" style="display: block;">
+              <p style="font-size: 90%;">
+                Click below to visit listed places, with some explanation of what you are seeing at each stop. The order listed will walk you through how the data are presented, the first three or four in particular (the others are included as starting points for your own explorations).
+              </p>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-kaikoura-arrow', 'kaikoura', 'Kaikoura', false)">
+                <p class="info-title">
+                  Kaikoura <span id="unfurl-kaikoura-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="kaikoura" class="info-panel" style="display: none;">
+                <p>
+                  Kaikoura is isolated, with larger flows only between Kaikoura itself and the Ranges. Switch to the <strong>Trip filters</strong> tab to experiment with switching between work and study trips. You should see work trips go from <span class="bluish">blue</span> to <span class="pinkish">pink</span>, and study trips from <span class="greenish">green</span> to <span class="orangey">orange</span>.
+                </p>
+                <p>
+                  There are more trips from the Ranges to Kaikoura than in the other direction. Flow direction is also shown by the shape of the arcs which swing out left and back in the direction of travel.
+                </p>
+                <p>
+                  If you switch among <strong>Car</strong>, <strong>Transit</strong> and <strong>Active</strong> modes you'll see that most trips are by car, with only a small number on transit (probably school buses).
+                </p>
+                <p>
+                  If you click on either Kaikoura or the Ranges this help will be replaced by a chart showing total trip volumes by purpose mode, and direction (flip back to this help using the <span class="control">&LeftArrowRightArrow; View controls</span> button). The chart also shows <strong>local</strong> trips, where home and place of work/study place are <em>inside</em> the area, and <strong>home</strong>, which is people working or studying from home. The local and home numbers tend to be proportionately greater in large rural districts like Kaikoura Ranges.
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-auckland-airport-arrow', 'auckland-airport', 'Auckland Airport', true)">
+                <p class="info-title">
+                  Auckland Airport <span id="unfurl-auckland-airport-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="auckland-airport" class="info-panel" style="display: none;">
+                <p>
+                  Almost 20,000 people travel to work at Auckland Airport, nearly all of them in cars. Use this stop to get a feel for how to reduce clutter in crowded parts by filtering trips, to see local details. This example is good to explore using the <strong>Volume</strong> and <strong>Dist(km)</strong> filters.
+                </p>
+                <p>
+                  First ensure that all distances are visible by dragging the upper and lower limits on the <strong>Dist(km</strong>) filter to the limits. This may seem to make no difference if the lower limit on trip volumes is above 0. Change this by dragging the low number on the <strong>Volume</strong> filter. You should see <em>even more</em> inbound work trips to the Airport. Zoom out a bit and you'll see that these are from as far as Aotea - Great Barrier Island to the north, and Huntly to the south!
+                </p>
+                <p>
+                  If you switch between work and study trips you'll see almost nobody goes to school at the airport, and that these trips are fairly local.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-otago-uni-arrow', 'otago-uni', 'Campus South', true)">
+                <p class="info-title">
+                  University of Otago <span id="unfurl-otago-uni-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="otago-uni" class="info-panel" style="display: none;">
+                <p>
+                  The biggest clusters of study related travel tend to be the universities, and unlike work travel, these trips are often distributed across modes.
+                </p>
+                <p>
+                  The first thing to notice about the Campus South trips is that the single highest volume flow in Aotearoa New Zealand is into this area, with 2526 work and study commutes from Gardens (Dunedin City). Try using the Volume filter to view only this flow. The impressive thing is how many of these trips use active modes, walking, biking, and... we can assume, skateboards, scooters and probably roller skates. Look at the chart and notice the contrasting mix of transport modes between the work and study trips.
+                </p>
+                <p>
+                  Something else to note here is that the scaling of the width of ribbons is not linear, but instead limits the width when zoomed in. This is because viewing a volume of 2500 trips and one of just 6 at the same scale would not be practical.
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-paekakariki-arrow', 'paekakariki', 'Paekakariki', true)">
+                <p class="info-title">
+                  Paekakariki <span id="unfurl-paekakariki-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="paekakariki" class="info-panel" style="display: none;">
+                <p>
+                  Paekakariki is an unusual case in Aotearoa New Zealand as a place with a reasonable balance between car and transit based commuting.
+                </p>
+                <p>
+                  This is as good a place as any to note one difficulty with the data. You might notice in the popup tables for ribbons, that the numbers don't add up! If you are particularly perceptive you'll see that all the numbers divide exactly by 3... and no... it's not because Kiwis travel around in groups of 3!
+                </p>
+                <p>
+                  Both effects are because Statistics New Zealand confidentialises the data. Numbers under 6 are suppressed, and all others numbers are rounded to a near number divisible by 3 (so 37 might become 36 or 39). For more on this, see <a target="_blank" href="https://www.stats.govt.nz/methods/applying-confidentiality-rules-to-2018-census-data-and-summary-of-changes-since-2013">here</a>. This makes small numbers in the data unreliable, and a lot of the zeros might not be zero at all! In this map data have been grouped. For example the <strong>Active</strong> category includes walking, cycling and other modes. It's' that all were 5 in the raw data so that 15 trips have 'disappeared' from the map.
+                </p>
+                <p>
+                  When non-car modes of transport are potentially so important for a low-carbon future it's unfortunate we don't have better data to keep track of progress, even if it is for sound, privacy reasons.
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-canterbury-arrow', 'canterbury', 'Canterbury', false)">
+                <p class="info-title">
+                  Canterbury <span id="unfurl-canterbury-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="canterbury" class="info-panel" style="display: none;">
+                <p>
+                  Canterbury, and the next stop on the tour (Auckland region) show the contrast between a monocentric urban region and a polycentric one. Looking at Canterbury it is useful to switch off work trips, when regional centres come to the fore with many inbound school trips and the overall hierarchy of places in the region is clear.
+                </p>
+                <p>
+                  Turning work trips on (and study trips off) the picture is less clear, but the dominance of the region by Christchurch City as a centre of employment is very apparent.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-auckland-arrow', 'auckland', 'Auckland Region', false)">
+                <p class="info-title">
+                  Auckland Region <span id="unfurl-auckland-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="auckland" class="info-panel" style="display: none;">
+                <p>
+                  By contrast with Canterbury, the picture in Auckland is chaos! Looking first at education, the University dominates. travel patterns. If you reduce the maximum trip distance included in the view, you can see the travel patterns associated with schools emerge.
+                </p>
+                <p>
+                  Turning work trips on (and study trips off) the polycentric structure of the region is clear&mdash;people are travelling everywhere to everywhere! There are major centres of employment at the Airport, in the CBD (represented by several areas in this map), Penrose, Manukau, New Lynn, North Harbour, and others besides. This helps explain the traffic mayhem everyone talks about so much!
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-wanaka-arrow', 'wanaka', 'Wanaka-Queenstown-Cromwell', false)">
+                <p class="info-title">
+                  Wanaka and around<span id="unfurl-wanaka-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="wanaka" class="info-panel" style="display: none;">
+                <p>
+                  It might seem strange to compare the Wanaka-Queenstown-Cromwell-Alexandra area to Auckland Region or Canterbury, but from the perspective of trips to work and school there are some similarities! There are multiple centres, with no one centre dominant, even if Queenstown is clearly the busiest.
+              </div>
+            </div>
+
+            <div>
+              <label onclick="toggleTourStop('unfurl-gisborne-arrow', 'gisborne', 'Gisborne Central', true)">
+                <p class="info-title">
+                  Gisborne Central <span id="unfurl-gisborne-arrow">&#9661;</span>
+                </p>
+              </label>
+              <div id="gisborne" class="info-panel" style="display: none;">
+                <p>
+                  There aren't many cities in Aotearoa New Zealand as remote as Gisborne and it shows in the patterns of trips in and out of Gisborne Central&mdash;a single center of both work and study.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script src="./js/lib/auto-complete.min.js"></script>
+    <script src="./js/app.js"></script>
+  </body>
+</html>
