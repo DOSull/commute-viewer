@@ -673,11 +673,11 @@ function getTripCounts(o, type) {
 }
 
 function deselectArea(area) {
-  if (area == SEL_AREA) {
+  // if (area == SEL_AREA) {
     deselectAreaUIUpdates();
     SEL_AREA = null;
     render();
-  }
+  // }
 }
 
 function selectArea(object) {
