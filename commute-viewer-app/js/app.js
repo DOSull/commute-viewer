@@ -657,7 +657,7 @@ function getTripCounts(o, type) {
   return [o.properties["".concat(type, "cr")], o.properties["".concat(type, "pt")], o.properties["".concat(type, "ac")], 0];
 }
 
-function deselectArea(area) {
+function deselectArea() {
   // if (area == SEL_AREA) {
     deselectAreaUIUpdates();
     SEL_AREA = null;

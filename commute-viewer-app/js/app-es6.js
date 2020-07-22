@@ -672,7 +672,7 @@ function getTripCounts(o, type) {
   ];
 }
 
-function deselectArea(area) {
+function deselectArea() {
   // if (area == SEL_AREA) {
     deselectAreaUIUpdates();
     SEL_AREA = null;
