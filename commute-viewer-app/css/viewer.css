@@ -89,19 +89,19 @@ margin: 2px 0px;
 }
 .bluish{
   background-color: #06f;
-  opacity: 0.38;
+  opacity: 0.75;
 }
 .greenish{
   background-color: #0c6;
-  opacity: 0.5;
+  opacity: 0.75;
 }
 .pinkish{
   background-color: #c06;
-  opacity: 0.38;
+  opacity: 0.75;
 }
 .orangey{
   background-color: #f60;
-  opacity: 0.5;
+  opacity: 0.75;
 }
 #loader {
   position: absolute;

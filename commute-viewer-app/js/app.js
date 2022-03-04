@@ -73,11 +73,12 @@ var START_VIEW = {
   zoom: 5,
   maxZoom: 20,
   pitch: 35,
-  bearing: document.documentElement.clientWidth > document.documentElement.clientHeight ? 330 : 0,
-  pickingRadius: 3,
-  transitionDuration: 3000
-}; // initialise the deck
+  bearing: (document.body.clientWidth >
+    document.body.clientHeight) ? 330 : 0,
+  pickingRadius: 3
+};
 
+// initialise the deck
 var MY_DECKGL = new deck.DeckGL({
   mapStyle: THEMES[THEME],
   initialViewState: START_VIEW,
@@ -87,9 +88,12 @@ var MY_DECKGL = new deck.DeckGL({
     var viewState = _ref.viewState;
     render();
   }
-}); // retrieve the theme 'dark' or 'light' from the URL
-// query string - defaults to 'light'
+});
 
+
+
+// retrieve the theme 'dark' or 'light' from the URL
+// query string - defaults to 'light'
 function getThemeFromURL() {
   var thisURL = window.location.href;
 
@@ -233,7 +237,7 @@ function render() {
     },
     getTilt: 10,
     getWidth: function getWidth(d) {
-      return getRibbonWidth(d);
+      return getRibbonWidth(d) * 2 / 3;
     },
     widthScale: 20,
     widthMaxPixels: 100,
@@ -351,7 +355,9 @@ function getTripTotalColumns(includePurp, includeMode) {
   }
 
   return ttc;
-} // Calculate trip totals based on the true items in the
+}
+
+// Calculate trip totals based on the true items in the
 // supplied columns Object
 // Each item key is a variable name from the trips
 // datasets, and will add that into the total.
@@ -361,8 +367,6 @@ function getTripTotalColumns(includePurp, includeMode) {
 // selected then summing the subtotals is replaced by
 // using the wtot or etot column in the data because
 // data suppression means the subtotals don't sum correctly...
-
-
 function getTripTotals(object, columns) {
   var total = 0;
   var edTotal = 0;

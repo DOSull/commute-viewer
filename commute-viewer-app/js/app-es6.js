@@ -50,12 +50,9 @@ const START_VIEW = {
   zoom: 5,
   maxZoom: 20,
   pitch: 35,
-  bearing: (document.documentElement.clientWidth >
-    document.documentElement.clientHeight) ?
-    330 :
-    0,
+  bearing: (document.body.clientWidth >
+    document.body.clientHeight) ? 330 : 0,
   pickingRadius: 3,
-  transitionDuration: 3000,
 }
 
 // initialise the deck
@@ -202,7 +199,7 @@ function render() {
       [255, 102, 0, getTripTotals(d, TRIP_TOTAL_COLUMNS).education]
     ),
     getTilt: 10,
-    getWidth: d => getRibbonWidth(d),
+    getWidth: d => getRibbonWidth(d) * 2 / 3,
     widthScale: 20,
     widthMaxPixels: 100,
     widthUnits: "meters",
@@ -237,7 +234,7 @@ function render() {
     pickable: false,
     fontFamily: "serif",
     characterSet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZāēīōūĀĒŌĪŪ-(), ",
-    backgroundColor: [0, 51, 0],
+    getBackgroundColor: [0, 51, 0],
     getPosition: d => [d.x, d.y],
     getText: d => d.n,
     lineHeight: 3,
